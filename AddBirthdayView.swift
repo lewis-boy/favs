@@ -16,11 +16,12 @@ let backgroundGradient = LinearGradient(
 
 struct AddBirthdayView: View {
     @Environment(\.dismiss) var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @StateObject var vm = ContentViewModel()
     
     @State private var name = ""
     @State private var birthdayDate: Date = Date()
-    @State private var age = 0
+    @State private var newFavorite = ""
+    @State private var favorites: [String] = []
 
     var body: some View {
             ZStack {
@@ -39,9 +40,23 @@ struct AddBirthdayView: View {
                         DatePicker("Birthday", selection: $birthdayDate, displayedComponents: .date)
                             .labelsHidden()
                             .tint(.pink)
-                        
-                        TextField("Age", value: $age, format: .number)
-                            .keyboardType(.numberPad)
+//
+//                        TextField("Age", value: $age, format: .number)
+//                            .keyboardType(.numberPad)
+                        HStack{
+                            TextField("Add favorite", text: $newFavorite)
+                                .onSubmit(addFavorite)
+                            Button("Tap here to add to list", action: addFavorite)
+                        }
+                        ForEach(favorites, id: \.self){fav in
+                            HStack{
+                                Text(fav)
+                            }
+                        }
+                        if favorites.isEmpty{
+                            Text("Don't forget to ask them for their favorites")
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     .scrollContentBackground(.hidden)
                     .background(Color.clear)
@@ -54,25 +69,15 @@ struct AddBirthdayView: View {
     }
     
     private func saveBirthday (){
-        guard !name.isEmpty else {
-            print("Name field is empty")
-            return
-        }
-        
-        let newBirthday = Birthday(
-            name: name,
-            birthdayDate: birthdayDate,
-            age: age
-        )
-        
-        modelContext.insert(newBirthday)
-        do{
-            try modelContext.save()
-            print("Birthday Saved successfully")
-        }catch{
-            print("Failed to save: \(error.localizedDescription)")
-        }
+        guard !name.isEmpty else {return}
+        vm.addBirthday(name: name, birthday: birthdayDate, favorites: favorites)
         dismiss()
+    }
+    private func addFavorite() {
+        let formattedFavorite = newFavorite.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !formattedFavorite.isEmpty else {return}
+        favorites.append(formattedFavorite)
+        newFavorite = ""
     }
 }
 

@@ -24,6 +24,5 @@ struct CameraTestingApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: Birthday.self)
     }
 }

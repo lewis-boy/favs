@@ -25,8 +25,8 @@ enum Filters: String, CaseIterable, Identifiable {
 
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Birthday.birthdayDate) private var birthdays: [Birthday]
+    @StateObject var vm = ContentViewModel()
+    
     @State private var selectedFilter: Filters = .none
     @State private var selectedItem: PhotosPickerItem?
     @State private var selectedImage: UIImage?
@@ -34,15 +34,15 @@ struct ContentView: View {
     @State private var showingAddBirthday = false
     @State private var result: String = "Press the button to test API"
     
-    func loadBase64() -> String? {
-        guard let url = Bundle.main.url(forResource: "pokemon-guess", withExtension: "txt"),
-            let content = try? String(contentsOf: url)
-        else{
-                print("Failed to load base64 file")
-                return nil
-        }
-        return content
-    }
+//    func loadBase64() -> String? {
+//        guard let url = Bundle.main.url(forResource: "pokemon-guess", withExtension: "txt"),
+//            let content = try? String(contentsOf: url)
+//        else{
+//                print("Failed to load base64 file")
+//                return nil
+//        }
+//        return content
+//    }
     
     var body: some View {
         NavigationStack{
@@ -66,9 +66,8 @@ struct ContentView: View {
                                     .foregroundColor(.black)
                             }
                         }
-                        .sheet(isPresented: $showingAddBirthday){
+                        .sheet(isPresented: $showingAddBirthday, onDismiss: {vm.fetchBirthdays()}){
                             AddBirthdayView()
-                                .environment(\.modelContext, modelContext)
                         }
                     }
                     .padding(.horizontal)
@@ -80,17 +79,32 @@ struct ContentView: View {
                     }
                     .pickerStyle(.segmented)
                     
-                    ScrollView{
-                        LazyVStack(spacing: 25){
-                            //birthday cards go here
-                            ForEach(birthdays){birthday in
-                                VStack(alignment: .leading, spacing: 4){
-                                    Text(birthday.name)
-                                    Text(birthday.birthdayDate.formatted(date: .abbreviated, time: .omitted))
+                    //add birthday list here
+                    List{
+                        ForEach(vm.savedBirthdays){birthday in
+                            HStack(){
+                                Image(systemName: "plus")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(.black)
+                                VStack(alignment: .leading){
+                                        Text(birthday.name ?? "Stranger")
+                                            .font(.custom("SignPainter-HouseScript", fixedSize: 32))
+                                        Text(birthday.birthdayDate?.formatted(.dateTime.month().day()) ?? "R")
+                                            .font(.custom("DINAlternate-Bold",fixedSize: 20))
+                                        
                                 }
+                                Spacer()
+                                Text(birthday.favoritesArray.isEmpty ? "No favorites yet" : "A list lies here")
+                                Text("15 Days")
+                                    .font(.custom("DINAlternate-Bold",fixedSize: 20))
+                                
+                                
                             }
+                            
                         }
+                        .onDelete(perform: vm.deleteBirthday)
                     }
+                    .listStyle(PlainListStyle())
                     
                     if let selectedImage = selectedImage {
                         Image(uiImage: selectedImage)
@@ -167,22 +181,19 @@ struct ContentView: View {
                 }
                 .padding()
             }
-            .onAppear{
-                print("Birthday count:", birthdays.count)
-            }
         }
         
     }
 }
 
-extension UIImage {
-    func toBase64() -> String? {
-        guard let jpegData = self.jpegData(compressionQuality: 0.8) else{
-            return nil
-        }
-        return jpegData.base64EncodedString()
-    }
-}
+//extension UIImage {
+//    func toBase64() -> String? {
+//        guard let jpegData = self.jpegData(compressionQuality: 0.8) else{
+//            return nil
+//        }
+//        return jpegData.base64EncodedString()
+//    }
+//}
 
 #Preview {
     ContentView()
