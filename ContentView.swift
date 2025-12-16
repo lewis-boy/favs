@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import CoreData
 
 let homeGradient = LinearGradient(
     colors: [Color(red: 1.0, green: 0.87, blue: 0.92), Color.blue],
@@ -33,6 +34,7 @@ struct ContentView: View {
     @State private var showingCamera = false
     @State private var showingAddBirthday = false
     @State private var result: String = "Press the button to test API"
+    @State private var expandedBirthdayID: NSManagedObjectID?
     
 //    func loadBase64() -> String? {
 //        guard let url = Bundle.main.url(forResource: "pokemon-guess", withExtension: "txt"),
@@ -82,29 +84,53 @@ struct ContentView: View {
                     //add birthday list here
                     List{
                         ForEach(vm.savedBirthdays){birthday in
-                            HStack(){
-                                Image(systemName: "plus")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundColor(.black)
-                                VStack(alignment: .leading){
-                                        Text(birthday.name ?? "Stranger")
-                                            .font(.custom("SignPainter-HouseScript", fixedSize: 32))
-                                        Text(birthday.birthdayDate?.formatted(.dateTime.month().day()) ?? "R")
-                                            .font(.custom("DINAlternate-Bold",fixedSize: 20))
-                                        
+                            let daysLeft = daysUntilBirthday(birthday.birthdayDate!)
+                            VStack{
+                                
+                                
+                                HStack(){
+                                    FavoriteIcon(
+                                        color: birthday.favoritesArray.isEmpty ? .yellow : .teal,
+                                        systemName: birthday.favoritesArray.isEmpty ? "star.fill" : "music.note"
+                                    )
+                                    VStack(alignment: .leading){
+                                            Text(birthday.name ?? "Stranger")
+                                                .font(.custom("SignPainter-HouseScript", fixedSize: 32))
+                                            Text(birthday.birthdayDate?.formatted(.dateTime.month().day()) ?? "R")
+                                                .font(.custom("DINAlternate-Bold",fixedSize: 20))
+                                            
+                                    }
+                                    Spacer()
+                                    Text(daysLeft == 0 ? "Today!!" : daysLeft < 0 ? "Celebrated!" : "in \(daysLeft) days")
+                                    
+                                    
                                 }
-                                Spacer()
-                                Text(birthday.favoritesArray.isEmpty ? "No favorites yet" : "A list lies here")
-                                Text("15 Days")
-                                    .font(.custom("DINAlternate-Bold",fixedSize: 20))
                                 
-                                
+                                if expandedBirthdayID == birthday.objectID{
+                                    if birthday.favoritesArray.isEmpty{
+                                        Text("Pss. You should ask them about their favorites.")
+                                            .foregroundStyle(.secondary)
+                                    }else{
+                                        Text(birthday.favoritesArray.joined(separator: ", "))
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
                             }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.35)){
+                                    expandedBirthdayID = expandedBirthdayID == birthday.objectID ? nil : birthday.objectID
+                                }
+                            }
+                            
                             
                         }
                         .onDelete(perform: vm.deleteBirthday)
                     }
                     .listStyle(PlainListStyle())
+                    .scrollContentBackground(.hidden)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
                     
                     if let selectedImage = selectedImage {
                         Image(uiImage: selectedImage)
@@ -184,6 +210,23 @@ struct ContentView: View {
         }
         
     }
+}
+
+private func daysUntilBirthday(_ birthdayDate: Date) -> Int {
+    let calendar = Calendar.current
+    let today = calendar.startOfDay(for: Date())
+    
+    var components = calendar.dateComponents([.month, .day], from: birthdayDate)
+    components.year = calendar.component(.year, from: today)
+    
+    guard let nextBirthday = calendar.date(from: components) else{
+        return -1
+    }
+    
+    if nextBirthday < today {return -1}
+    if nextBirthday == today {return 0}
+    
+    return calendar.dateComponents([.day], from: today, to: nextBirthday).day ?? -1
 }
 
 //extension UIImage {
