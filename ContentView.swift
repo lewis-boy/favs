@@ -28,6 +28,7 @@ enum Filters: String, CaseIterable, Identifiable {
 struct ContentView: View {
     @StateObject var vm = ContentViewModel()
     
+    @State private var newFavorite = ""
     @State private var selectedFilter: Filters = .none
     @State private var selectedItem: PhotosPickerItem?
     @State private var selectedImage: UIImage?
@@ -105,6 +106,12 @@ struct ContentView: View {
                                     
                                     
                                 }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    withAnimation(.easeInOut(duration: 0.35)){
+                                        expandedBirthdayID = expandedBirthdayID == birthday.objectID ? nil : birthday.objectID
+                                    }
+                                }
                                 
                                 if expandedBirthdayID == birthday.objectID{
                                     if birthday.favoritesArray.isEmpty{
@@ -115,14 +122,22 @@ struct ContentView: View {
                                             .font(.subheadline)
                                             .foregroundStyle(.secondary)
                                     }
+                                    
+                                    HStack{
+                                        TextField("Add another favoite", text: $newFavorite)
+                                        Button("Add"){
+                                            let formattedInput = newFavorite.trimmingCharacters(in: .whitespacesAndNewlines)
+                                            guard !formattedInput.isEmpty else {return}
+                                            
+                                            birthday.favoritesArray.append(formattedInput)
+                                            newFavorite = ""
+                                            
+                                            try? vm.saveData()
+                                        }
+                                    }
                                 }
                             }
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                withAnimation(.easeInOut(duration: 0.35)){
-                                    expandedBirthdayID = expandedBirthdayID == birthday.objectID ? nil : birthday.objectID
-                                }
-                            }
+                            
                             
                             
                         }
