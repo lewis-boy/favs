@@ -56,6 +56,19 @@ struct ContentView: View {
             ZStack {
                 homeGradient.ignoresSafeArea()
                 
+                // subtle “glow blobs” behind glass
+                Circle()
+                    .fill(.white.opacity(0.18))
+                    .frame(width: 280, height: 280)
+                    .blur(radius: 25)
+                    .offset(x: -140, y: -260)
+
+                Circle()
+                    .fill(.white.opacity(0.14))
+                    .frame(width: 340, height: 340)
+                    .blur(radius: 30)
+                    .offset(x: 150, y: 260)
+                
                 VStack(spacing: 20) {
                     HStack{
                         Text("Favorites")
@@ -80,100 +93,125 @@ struct ContentView: View {
                     .padding(.horizontal)
                     .padding(.top, 20)
                     
-                    
-                    Picker("Picker Name", selection: $selectedFilter){
-                        ForEach(Filters.allCases){choice in
-                            Text(choice.rawValue).tag(choice)}
+                    // Segmented control “glass bar”
+                    Picker("Filter", selection: $selectedFilter) {
+                        ForEach(Filters.allCases) { choice in
+                            Text(choice.rawValue).tag(choice)
+                        }
                     }
                     .pickerStyle(.segmented)
+                    .padding(10)
+                    .glassRow(radius: 18)
+                    .padding(.horizontal, 14)
                     
-                    //add birthday list here
-                    List{
-                        ForEach(vm.savedBirthdays){birthday in
+                    
+                    
+                    // Birthdays list in a glass card
+                    List {
+                        ForEach(vm.savedBirthdays) { birthday in
                             let daysLeft = daysUntilBirthday(birthday.birthdayDate!)
-                            VStack{
-                                
-                                
-                                HStack(){
+
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
                                     FavoriteIcon(
                                         color: birthday.favoritesArray.isEmpty ? .yellow : .teal,
                                         systemName: birthday.favoritesArray.isEmpty ? "star.fill" : "music.note"
                                     )
-                                    VStack(alignment: .leading){
-                                            Text(birthday.name ?? "Stranger")
-                                                .font(.custom("SignPainter-HouseScript", fixedSize: 32))
-                                            Text(birthday.birthdayDate?.formatted(.dateTime.month().day()) ?? "R")
-                                                .font(.custom("DINAlternate-Bold",fixedSize: 20))
-                                            
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(birthday.name ?? "Stranger")
+                                            .font(.custom("Helvetica-Bold", fixedSize: 24))
+
+                                        Text(birthday.birthdayDate?.formatted(.dateTime.month().day()) ?? "")
+                                            .font(.custom("DINAlternate-Bold", fixedSize: 20))
                                     }
+
                                     Spacer()
+
                                     Text(daysLeft == 0 ? "Today!!" : daysLeft < 0 ? "Celebrated!" : "in \(daysLeft) days")
-                                    
-                                    
+                                        .foregroundStyle(.secondary)
                                 }
                                 .contentShape(Rectangle())
                                 .onTapGesture {
-                                    withAnimation(.easeInOut(duration: 0.35)){
+                                    withAnimation(.easeInOut(duration: 0.35)) {
                                         expandedBirthdayID = expandedBirthdayID == birthday.objectID ? nil : birthday.objectID
                                     }
                                 }
-                                
-                                if expandedBirthdayID == birthday.objectID{
-                                    if birthday.favoritesArray.isEmpty{
+
+                                if expandedBirthdayID == birthday.objectID {
+                                    Divider().opacity(0.2)
+
+                                    if birthday.favoritesArray.isEmpty {
                                         Text("Pss. You should ask them about their favorites.")
                                             .foregroundStyle(.secondary)
-                                    }else{
+                                    } else {
                                         Text(birthday.favoritesArray.joined(separator: ", "))
                                             .font(.subheadline)
                                             .foregroundStyle(.secondary)
-                                        Button("Ask GPT for gift ideas"){
-                                            Task{
+
+                                        Button("Ask GPT for gift ideas") {
+                                            Task {
                                                 isLoading = true
                                                 giftRecommendation = nil
-                                                
+
                                                 let prompt = makePrompt(for: birthday.favoritesArray)
-                                                
-                                                do{
-                                                    giftRecommendation = try await askGPT(prompt: prompt)
-                                                }catch{
-                                                    giftRecommendation = "Failed to get recommendation"
-                                                }
-                                                
+
+                                                do { giftRecommendation = try await askGPT(prompt: prompt) }
+                                                catch { giftRecommendation = "Failed to get recommendation" }
+
                                                 isLoading = false
                                             }
                                         }
-                                        if isLoading{
-                                            ProgressView()
-                                        }
-                                        
+
+                                        if isLoading { ProgressView() }
+
                                         if let giftRecommendation {
                                             Text(giftRecommendation)
+                                                .font(.subheadline)
                                         }
                                     }
-                                    
-                                    HStack{
-                                        TextField("Add another favoite", text: $newFavorite)
-                                        Button("Add"){
+
+                                    HStack {
+                                        TextField("Add another favorite", text: $newFavorite)
+                                            .textFieldStyle(.plain)
+                                            .padding(10)
+                                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                                    .stroke(.white.opacity(0.18), lineWidth: 1)
+                                            )
+
+                                        Button("Add") {
                                             let formattedInput = newFavorite.trimmingCharacters(in: .whitespacesAndNewlines)
-                                            guard !formattedInput.isEmpty else {return}
-                                            
+                                            guard !formattedInput.isEmpty else { return }
+
                                             birthday.favoritesArray.append(formattedInput)
                                             newFavorite = ""
-                                            
                                             try? vm.saveData()
                                         }
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 10)
+                                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                                .stroke(.white.opacity(0.18), lineWidth: 1)
+                                        )
                                     }
+                                    .padding(.top, 4)
                                 }
                             }
-                            
-                            
-                            
+                            .padding(14)
+                            .glassRow(radius: 22)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
                         }
                         .onDelete(perform: vm.deleteBirthday)
                     }
-                    .listStyle(PlainListStyle())
+                    .listStyle(.plain)
                     .scrollContentBackground(.hidden)
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .padding(10)
+                    .glassCard(radius: 28)
+                    .padding(.horizontal, 14)
                     
                     if let apiResult = apiResult {
                         Text("This is what Google thinks of your image: \(apiResult)")
@@ -299,6 +337,58 @@ extension UIImage {
             return nil
         }
         return jpegData.base64EncodedString()
+    }
+}
+
+private extension View {
+    func glassCard(radius: CGFloat = 26) -> some View {
+        self
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .stroke(.white.opacity(0.22), lineWidth: 1)
+            )
+            .shadow(radius: 18)
+    }
+
+    func glassRow(radius: CGFloat = 20) -> some View {
+        self
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .stroke(.white.opacity(0.16), lineWidth: 1)
+            )
+    }
+}
+
+private struct GlassPillButtonStyle: ButtonStyle {
+    var tint: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(.primary)
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(tint)
+                        .opacity(configuration.isPressed ? 0.35 : 0.22)
+                }
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(.white.opacity(configuration.isPressed ? 0.14 : 0.22), lineWidth: 1)
+            )
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .shadow(radius: configuration.isPressed ? 6 : 10)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+private extension ButtonStyle where Self == GlassPillButtonStyle {
+    static func glassPill(tint: Color = .white.opacity(0.18)) -> GlassPillButtonStyle {
+        GlassPillButtonStyle(tint: tint)
     }
 }
 
