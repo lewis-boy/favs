@@ -27,7 +27,11 @@ enum Filters: String, CaseIterable, Identifiable {
 
 struct ContentView: View {
     @StateObject var vm = ContentViewModel()
+   
     
+    @State private var giftRecommendation: String?
+    @State private var apiResult: String?
+    @State private var isLoading = false
     @State private var newFavorite = ""
     @State private var selectedFilter: Filters = .none
     @State private var selectedItem: PhotosPickerItem?
@@ -76,6 +80,7 @@ struct ContentView: View {
                     .padding(.horizontal)
                     .padding(.top, 20)
                     
+                    
                     Picker("Picker Name", selection: $selectedFilter){
                         ForEach(Filters.allCases){choice in
                             Text(choice.rawValue).tag(choice)}
@@ -121,6 +126,29 @@ struct ContentView: View {
                                         Text(birthday.favoritesArray.joined(separator: ", "))
                                             .font(.subheadline)
                                             .foregroundStyle(.secondary)
+                                        Button("Ask GPT for gift ideas"){
+                                            Task{
+                                                isLoading = true
+                                                giftRecommendation = nil
+                                                
+                                                let prompt = makePrompt(for: birthday.favoritesArray)
+                                                
+                                                do{
+                                                    giftRecommendation = try await askGPT(prompt: prompt)
+                                                }catch{
+                                                    giftRecommendation = "Failed to get recommendation"
+                                                }
+                                                
+                                                isLoading = false
+                                            }
+                                        }
+                                        if isLoading{
+                                            ProgressView()
+                                        }
+                                        
+                                        if let giftRecommendation {
+                                            Text(giftRecommendation)
+                                        }
                                     }
                                     
                                     HStack{
@@ -147,13 +175,29 @@ struct ContentView: View {
                     .scrollContentBackground(.hidden)
                     .clipShape(RoundedRectangle(cornerRadius: 20))
                     
+                    if let apiResult = apiResult {
+                        Text("This is what Google thinks of your image: \(apiResult)")
+                    }
+                    
                     if let selectedImage = selectedImage {
-                        Image(uiImage: selectedImage)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(height: 300)
-                            .cornerRadius(25)
-                    }else{
+                        ZStack(alignment: .topTrailing){
+                            Image(uiImage: selectedImage)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(height: 100)
+                                .cornerRadius(25)
+                                .overlay(
+                                    Button(action: {
+                                        self.selectedImage = nil
+                                    }){
+                                        Text("close")
+                                    }
+                                )
+                        }
+                        
+                        
+                    }
+                    else{
                         Text("No image selected")
                             .foregroundStyle(.gray)
                             .padding()
@@ -191,25 +235,30 @@ struct ContentView: View {
                             }
                         }
                     }
-                    //                Button("Test Vision API"){
-                    //                    Task{
-                    //                        if let image = selectedImage,
-                    //                           let base64 = image.toBase64(){
-                    //
-                    //                            do{
-                    //                                let identifier  = try await VisionService().detectObject(base64: base64)
-                    //                                result = "API result: \(identifier)"
-                    //                                print("API result:", identifier)
-                    //                            }catch{
-                    //                                result = "Error: \(error)"
-                    //                                print(error)
-                    //                            }
-                    //                        }
-                    //                        else{
-                    //                            result = "Failed to load Base64"
-                    //                        }
-                    //                    }
-                    //                }
+                                    Button("Test Vision API"){
+                                        Task{
+                                            if let image = selectedImage,
+                                               let base64 = image.toBase64(){
+                    
+                                                do{
+                                                    let identifier  = try await VisionService().detectObject(base64: base64)
+                                                    result = "API result: \(identifier)"
+                                                    apiResult = result
+                                                    print("API result:", identifier)
+                                                    self.selectedImage = nil
+                                                }catch{
+                                                    result = "Error: \(error)"
+                                                    print(error)
+                                                    self.selectedImage = nil
+                                                }
+                                            }
+                                            else{
+                                                result = "Failed to load Base64"
+                                                self.selectedImage = nil
+                                            }
+                                        }
+                                        
+                                    }
                     //                Button("Test Firebase"){
                     //                    Task{
                     //                        do{
@@ -244,14 +293,14 @@ private func daysUntilBirthday(_ birthdayDate: Date) -> Int {
     return calendar.dateComponents([.day], from: today, to: nextBirthday).day ?? -1
 }
 
-//extension UIImage {
-//    func toBase64() -> String? {
-//        guard let jpegData = self.jpegData(compressionQuality: 0.8) else{
-//            return nil
-//        }
-//        return jpegData.base64EncodedString()
-//    }
-//}
+extension UIImage {
+    func toBase64() -> String? {
+        guard let jpegData = self.jpegData(compressionQuality: 0.8) else{
+            return nil
+        }
+        return jpegData.base64EncodedString()
+    }
+}
 
 #Preview {
     ContentView()

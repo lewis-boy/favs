@@ -8,5 +8,7 @@
 	<array>
 		<dict/>
 	</array>
+	<key>GPT_KEY</key>
+	<string>$(GPTAPIKey)</string>
 </dict>
 </plist>
